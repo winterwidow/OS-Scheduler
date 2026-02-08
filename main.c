@@ -87,10 +87,44 @@ int main(int argc, char *argv[])
 
     printf("Loaded %d processes from %s\n", n, filename);
 
-    fcfs(processes, n);
-    sjf_non_preemptive(processes, n);
-    priority_non_preemptive(processes, n);
-    round_robin(processes, n, quantum);
+    // fcfs(processes, n);
+    // sjf_non_preemptive(processes, n);
+    // priority_non_preemptive(processes, n);
+    // round_robin(processes, n, quantum);
+    int choice;
+    while (1)
+    {
+        printf("\nCPU Scheduling Simulator\n");
+        printf("1. FCFS\n");
+        printf("2. SJF (Non-preemptive)\n");
+        printf("3. Priority (Non-preemptive)\n");
+        printf("4. Round Robin\n");
+        printf("5. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
 
-    return 0;
-}
+        if (choice == 5)
+            break;
+
+        switch (choice)
+        {
+        case 1:
+            fcfs(processes, n);
+            break;
+        case 2:
+            sjf_non_preemptive(processes, n);
+            break;
+        case 3:
+            priority_non_preemptive(processes, n);
+            break;
+        case 4:
+            printf("Enter time quantum: ");
+            scanf("%d", &quantum);
+            round_robin(processes, n, quantum);
+            break;
+        default:
+            printf("Invalid choice.\n");
+        }
+
+        return 0;
+    }
