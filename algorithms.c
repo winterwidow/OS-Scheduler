@@ -1,0 +1,257 @@
+#include <stdio.h> 
+#include <string.h> // for memcpy
+#include <limits.h> // for INT_MAX
+#include "algorithms.h"
+
+static void print_results(const char *name, Process p[], int n)
+{
+    double total_wait = 0.0, total_tat = 0.0;
+
+    printf("\n=== %s ===\n", name);
+    printf("PID\tAT\tBT\tPR\tST\tFT\tWT\tTAT\n");
+    for (int i = 0; i < n; i++)
+    {
+        total_wait += p[i].waiting_time;
+        total_tat += p[i].turnaround_time;
+        printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+               p[i].pid,
+               p[i].arrival_time,
+               p[i].burst_time,
+               p[i].priority,
+               p[i].start_time,
+               p[i].finish_time,
+               p[i].waiting_time,
+               p[i].turnaround_time);
+    }
+
+    printf("Average waiting time    : %.2f\n", total_wait / n);
+    printf("Average turnaround time : %.2f\n", total_tat / n);
+}
+
+static void copy_processes(Process dest[], Process src[], int n)
+{
+    memcpy(dest, src, n * sizeof(Process));
+}
+
+/* ---------- FCFS (Non-preemptive) ---------- */
+
+void fcfs(Process orig[], int n)
+{
+    Process p[100];
+    copy_processes(p, orig, n);
+
+    // Sort by arrival time (simple bubble sort for clarity)
+    for (int i = 0; i < n - 1; i++)
+    {
+        for (int j = 0; j < n - i - 1; j++)
+        {
+            if (p[j].arrival_time > p[j + 1].arrival_time)
+            {
+                Process tmp = p[j];
+                p[j] = p[j + 1];
+                p[j + 1] = tmp;
+            }
+        }
+    }
+
+    int current_time = 0;
+    for (int i = 0; i < n; i++)
+    {
+        if (current_time < p[i].arrival_time)
+            current_time = p[i].arrival_time;
+
+        p[i].start_time = current_time;
+        p[i].finish_time = p[i].start_time + p[i].burst_time;
+        p[i].turnaround_time = p[i].finish_time - p[i].arrival_time;
+        p[i].waiting_time = p[i].start_time - p[i].arrival_time;
+
+        current_time = p[i].finish_time;
+    }
+
+    print_results("FCFS", p, n);
+}
+
+/* ---------- SJF Non-preemptive ---------- */
+
+void sjf_non_preemptive(Process orig[], int n)
+{
+    Process p[100];
+    copy_processes(p, orig, n);
+
+    int completed[100] = {0};
+    int completed_count = 0;
+    int current_time = 0;
+
+    while (completed_count < n)
+    {
+        int idx = -1;
+        int min_burst = INT_MAX;
+
+        // Pick shortest job among arrived and not completed
+        for (int i = 0; i < n; i++)
+        {
+            if (!completed[i] && p[i].arrival_time <= current_time)
+            {
+                if (p[i].burst_time < min_burst)
+                {
+                    min_burst = p[i].burst_time;
+                    idx = i;
+                }
+            }
+        }
+
+        // If no process has arrived yet, jump time
+        if (idx == -1)
+        {
+            int next_arrival = INT_MAX;
+            for (int i = 0; i < n; i++)
+            {
+                if (!completed[i] && p[i].arrival_time < next_arrival)
+                {
+                    next_arrival = p[i].arrival_time;
+                }
+            }
+            current_time = next_arrival;
+            continue;
+        }
+
+        p[idx].start_time = current_time;
+        p[idx].finish_time = p[idx].start_time + p[idx].burst_time;
+        p[idx].turnaround_time = p[idx].finish_time - p[idx].arrival_time;
+        p[idx].waiting_time = p[idx].start_time - p[idx].arrival_time;
+
+        current_time = p[idx].finish_time;
+        completed[idx] = 1;
+        completed_count++;
+    }
+
+    print_results("SJF (Non-preemptive)", p, n);
+}
+
+/* ---------- Priority Non-preemptive ---------- */
+
+void priority_non_preemptive(Process orig[], int n)
+{
+    Process p[100];
+    copy_processes(p, orig, n);
+
+    int completed[100] = {0};
+    int completed_count = 0;
+    int current_time = 0;
+
+    while (completed_count < n)
+    {
+        int idx = -1;
+        int best_priority = INT_MAX; // lower number = higher priority
+
+        for (int i = 0; i < n; i++)
+        {
+            if (!completed[i] && p[i].arrival_time <= current_time)
+            {
+                if (p[i].priority < best_priority)
+                {
+                    best_priority = p[i].priority;
+                    idx = i;
+                }
+            }
+        }
+
+        if (idx == -1)
+        {
+            int next_arrival = INT_MAX;
+            for (int i = 0; i < n; i++)
+            {
+                if (!completed[i] && p[i].arrival_time < next_arrival)
+                {
+                    next_arrival = p[i].arrival_time;
+                }
+            }
+            current_time = next_arrival;
+            continue;
+        }
+
+        p[idx].start_time = current_time;
+        p[idx].finish_time = p[idx].start_time + p[idx].burst_time;
+        p[idx].turnaround_time = p[idx].finish_time - p[idx].arrival_time;
+        p[idx].waiting_time = p[idx].start_time - p[idx].arrival_time;
+
+        current_time = p[idx].finish_time;
+        completed[idx] = 1;
+        completed_count++;
+    }
+
+    print_results("Priority (Non-preemptive)", p, n);
+}
+
+/* ---------- Round Robin (Preemptive) ---------- */
+
+void round_robin(Process orig[], int n, int quantum)
+{
+    Process p[100];
+    copy_processes(p, orig, n);
+
+    int remaining[100];
+    int done = 0;
+    int current_time = 0;
+    int first_start[100];
+
+    for (int i = 0; i < n; i++)
+    {
+        remaining[i] = p[i].burst_time;
+        first_start[i] = -1;
+    }
+
+    // Simple RR over arrival-aware processes
+    while (done < n)
+    {
+        int progress = 0;
+
+        for (int i = 0; i < n; i++)
+        {
+            if (remaining[i] > 0 && p[i].arrival_time <= current_time)
+            {
+                progress = 1;
+
+                if (first_start[i] == -1)
+                    first_start[i] = current_time;
+
+                int exec_time = (remaining[i] > quantum) ? quantum : remaining[i];
+                remaining[i] -= exec_time;
+                current_time += exec_time;
+
+                if (remaining[i] == 0)
+                {
+                    p[i].finish_time = current_time;
+                    done++;
+                }
+            }
+        }
+
+        // If no process could run at this time, jump to next arrival
+        if (!progress)
+        {
+            int next_arrival = INT_MAX;
+            for (int i = 0; i < n; i++)
+            {
+                if (remaining[i] > 0 && p[i].arrival_time < next_arrival)
+                {
+                    next_arrival = p[i].arrival_time;
+                }
+            }
+            if (next_arrival == INT_MAX)
+                break;
+            if (current_time < next_arrival)
+                current_time = next_arrival;
+        }
+    }
+
+    // Compute waiting and turnaround
+    for (int i = 0; i < n; i++)
+    {
+        p[i].start_time = first_start[i];
+        p[i].turnaround_time = p[i].finish_time - p[i].arrival_time;
+        p[i].waiting_time = p[i].turnaround_time - p[i].burst_time;
+    }
+
+    print_results("Round Robin", p, n);
+}
