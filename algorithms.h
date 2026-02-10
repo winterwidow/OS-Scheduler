@@ -15,6 +15,14 @@ typedef struct
     int turnaround_time; // total time taken from arrival to completion (finish_time - arrival_time)
 } Process;
 
+// for ROUND ROBIN, we need to track segments of execution for the Gantt chart
+typedef struct
+{
+    int pid;
+    int start;
+    int end;
+} Segment;
+
 void fcfs(Process p[], int n); // first-come first-served
 void sjf_non_preemptive(Process p[], int n); // shortest job first (non-preemptive)
 void priority_non_preemptive(Process p[], int n); // priority scheduling (non-preemptive)
